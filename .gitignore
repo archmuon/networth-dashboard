@@ -1,0 +1,23 @@
+# Financial data — never commit
+data/networth.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+.venv/
+
+# macOS
+.DS_Store
+
+# Spreadsheets (personal source data)
+*.numbers
+*.xlsx
+*.xls
+
+# Backup / scratch files
+*.bak
+*.bak.md
+*copy*.md

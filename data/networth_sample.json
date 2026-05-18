@@ -1,0 +1,50 @@
+{
+  "assets": {
+    "My 401k": [
+      142000,
+      146500,
+      151200
+    ],
+    "My Brokerage": [
+      38000,
+      40100,
+      39500
+    ],
+    "My Checking": [
+      5200,
+      6100,
+      4800
+    ],
+    "My Savings": [
+      18000,
+      18500,
+      19000
+    ]
+  },
+  "config": {
+    "accounts": [
+      { "name": "My 401k",      "group": "ret" },
+      { "name": "My Brokerage", "group": "stk" },
+      { "name": "My Checking",  "group": "cash" },
+      { "name": "My Savings",   "group": "cash" },
+      { "name": "My Mortgage",  "group": "debt" }
+    ]
+  },
+  "home": [
+    420000,
+    421000,
+    422500
+  ],
+  "liabilities": {
+    "My Mortgage": [
+      310000,
+      309500,
+      309000
+    ]
+  },
+  "months": [
+    "Mar '26",
+    "Apr '26",
+    "May '26"
+  ]
+}

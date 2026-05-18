@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Net Worth Dashboard</title>
+<!-- Chart.js served locally — zero CDN requests -->
+<script src="/static/chart.umd.min.js"></script>
+<style>
+/* ── THEME VARIABLES ─────────────────────────────────────────── */
+:root {
+  --bg:#0d1117; --surface:#161b22; --surface2:#21262d; --border:#30363d;
+  --text:#e6edf3; --muted:#7d8590;
+  --accent:#58a6ff; --green:#3fb950; --red:#f85149; --amber:#ffa657;
+  --purple:#bc8cff; --blue-lt:#79c0ff; --pink:#f778ba; --gold:#d29922;
+  --radius:10px;
+  --chart-grid:#21262d; --chart-tick:#7d8590;
+  --badge-ret-bg:#1c2a3a;  --badge-ret-fg:#79c0ff;
+  --badge-cash-bg:#1a2d1a; --badge-cash-fg:#3fb950;
+  --badge-stk-bg:#2a1e3a;  --badge-stk-fg:#bc8cff;
+  --badge-re-bg:#2c2115;   --badge-re-fg:#ffa657;
+  --badge-debt-bg:#2a1515; --badge-debt-fg:#f85149;
+}
+[data-theme="light"] {
+  --bg:#f6f8fa; --surface:#ffffff; --surface2:#f0f3f6; --border:#d0d7de;
+  --text:#1f2328; --muted:#57606a;
+  --accent:#0969da; --green:#1a7f37; --red:#cf222e; --amber:#9a6700;
+  --purple:#6639ba; --blue-lt:#0550ae; --pink:#bf3989; --gold:#7d4e00;
+  --chart-grid:#eaeef2; --chart-tick:#57606a;
+  --badge-ret-bg:#dff0ff;  --badge-ret-fg:#0550ae;
+  --badge-cash-bg:#d4f7d4; --badge-cash-fg:#116329;
+  --badge-stk-bg:#ede9ff;  --badge-stk-fg:#5931a9;
+  --badge-re-bg:#fff3cd;   --badge-re-fg:#7d4e00;
+  --badge-debt-bg:#ffe0e0; --badge-debt-fg:#a40e26;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:14px;line-height:1.5;transition:background .2s,color .2s}
+
+/* ── HEADER ──────────────────────────────────────────────────── */
+header{position:sticky;top:0;z-index:50;background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;height:58px;display:flex;align-items:center;gap:14px}
+.hbrand{flex:1;min-width:0}
+.hbrand h1{font-size:16px;font-weight:700;letter-spacing:-.3px;white-space:nowrap}
+.hbrand p{font-size:11px;color:var(--muted);margin-top:1px}
+.hasof{font-size:12px;color:var(--muted);white-space:nowrap}
+.hasof strong{color:var(--text);font-weight:600}
+.hactions{display:flex;gap:7px;align-items:center}
+.vdiv{width:1px;height:22px;background:var(--border)}
+
+/* ── BUTTONS ─────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;padding:5px 11px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;transition:background .15s;white-space:nowrap;font-family:inherit}
+.btn:hover{background:var(--border)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{opacity:.88;background:var(--accent)}
+.btn-icon{padding:5px 8px;font-size:14px}
+.btn-danger{color:var(--red);border-color:var(--red)}
+.btn-danger:hover{background:var(--badge-debt-bg)}
+
+/* ── LAYOUT ──────────────────────────────────────────────────── */
+.container{max-width:1440px;margin:0 auto;padding:22px 28px 60px}
+.grid{display:grid;gap:16px;margin-bottom:16px}
+.c1{grid-template-columns:1fr}
+.c2{grid-template-columns:1fr 1fr}
+
+/* ── KPI ─────────────────────────────────────────────────────── */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:13px;margin-bottom:22px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:15px 17px}
+.kpi-lbl{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.kpi-val{font-size:21px;font-weight:700;letter-spacing:-.5px;line-height:1.1}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.kpi-sub.up{color:var(--green)}.kpi-sub.dn{color:var(--red)}
+
+/* ── CARDS ───────────────────────────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:17px 19px}
+.card-title{font-size:12.5px;font-weight:600;margin-bottom:3px}
+.card-desc{font-size:11px;color:var(--muted);margin-bottom:13px}
+.chart-wrap{position:relative}
+
+/* ── SECTION LABELS ──────────────────────────────────────────── */
+.slabel{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin:24px 0 11px;padding-bottom:7px;border-bottom:1px solid var(--border)}
+
+/* ── TABLE ───────────────────────────────────────────────────── */
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);padding:6px 9px;border-bottom:1px solid var(--border)}
+th.r,td.r{text-align:right}
+td{padding:6px 9px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface2)}
+.badge{display:inline-block;font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:4px}
+.badge.ret  {background:var(--badge-ret-bg); color:var(--badge-ret-fg)}
+.badge.cash {background:var(--badge-cash-bg);color:var(--badge-cash-fg)}
+.badge.stk  {background:var(--badge-stk-bg); color:var(--badge-stk-fg)}
+.badge.re   {background:var(--badge-re-bg);  color:var(--badge-re-fg)}
+.badge.debt {background:var(--badge-debt-bg);color:var(--badge-debt-fg)}
+.up{color:var(--green)}.dn{color:var(--red)}
+
+/* ── EMPTY STATE ─────────────────────────────────────────────── */
+.empty-state{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;text-align:center;padding:40px}
+.empty-state.visible{display:flex}
+.empty-icon{width:56px;height:56px;opacity:.3}
+.empty-state h2{font-size:20px;font-weight:600;color:var(--text)}
+.empty-state p{font-size:13px;color:var(--muted);max-width:360px;line-height:1.6}
+.empty-state code{background:var(--surface2);border:1px solid var(--border);padding:6px 12px;border-radius:6px;font-size:13px;display:inline-block;margin-top:4px}
+.empty-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+
+/* ── SLIDE PANEL ─────────────────────────────────────────────── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;opacity:0;pointer-events:none;transition:opacity .25s}
+.overlay.open{opacity:1;pointer-events:all}
+.panel{position:fixed;top:0;right:0;bottom:0;width:430px;background:var(--surface);border-left:1px solid var(--border);z-index:201;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);box-shadow:-8px 0 32px rgba(0,0,0,.3)}
+.panel.open{transform:translateX(0)}
+.panel-hdr{padding:15px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0}
+.panel-hdr h2{font-size:14px;font-weight:700}
+.panel-hdr p{font-size:11px;color:var(--muted);margin-top:2px}
+.panel-close{background:none;border:none;cursor:pointer;color:var(--muted);font-size:18px;line-height:1;padding:2px 5px;border-radius:4px;margin-top:-2px}
+.panel-close:hover{background:var(--surface2);color:var(--text)}
+.panel-body{flex:1;overflow-y:auto}
+.panel-sec{padding:12px 20px 6px;border-bottom:1px solid var(--border)}
+.panel-sec:last-child{border-bottom:none}
+.psec-lbl{font-size:9.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:6px}
+.psec-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.frow{display:flex;align-items:flex-start;gap:8px;margin-bottom:7px}
+.flabel{flex:1;font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-top:7px}
+.finput-wrap{display:flex;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:6px;overflow:hidden;width:148px;flex-shrink:0}
+.finput-wrap:focus-within{border-color:var(--accent);box-shadow:0 0 0 2px rgba(88,166,255,.15)}
+[data-theme="light"] .finput-wrap:focus-within{box-shadow:0 0 0 2px rgba(9,105,218,.15)}
+.fpfx{padding:0 5px 0 8px;color:var(--muted);font-size:12px;user-select:none;flex-shrink:0}
+.finput{flex:1;background:none;border:none;outline:none;color:var(--text);font-size:12px;font-variant-numeric:tabular-nums;padding:6px 8px 6px 0;width:0;font-family:inherit}
+.finput::-webkit-outer-spin-button,.finput::-webkit-inner-spin-button{-webkit-appearance:none}
+.finput[type=number]{-moz-appearance:textfield}
+.split-inputs{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
+.split-row{display:flex;align-items:center;gap:4px}
+.split-tag{font-size:9.5px;font-weight:600;color:var(--muted);width:36px;text-align:right;flex-shrink:0;letter-spacing:.3px}
+.month-sec{padding:13px 20px 10px;border-bottom:1px solid var(--border)}
+.month-sec label{display:block;font-size:10px;font-weight:700;color:var(--muted);margin-bottom:5px;letter-spacing:.5px;text-transform:uppercase}
+.minput{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);font-size:14px;font-weight:600;outline:none;font-family:inherit}
+.minput:focus{border-color:var(--accent)}
+.panel-ftr{padding:13px 20px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-shrink:0}
+.panel-ftr .btn{flex:1;justify-content:center}
+.panel-ftr-note{flex:1;font-size:10px;color:var(--muted)}
+
+/* ── ACCOUNT MANAGEMENT ──────────────────────────────────────── */
+.acct-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.acct-name-input{flex:1;min-width:0;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:12px;outline:none;font-family:inherit}
+.acct-name-input:focus{border-color:var(--accent)}
+.acct-group-sel{background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:11px;padding:4px 6px;cursor:pointer;flex-shrink:0;font-family:inherit;outline:none}
+.acct-group-sel:focus{border-color:var(--accent)}
+.cashsplit-lbl{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);cursor:pointer;white-space:nowrap;flex-shrink:0;user-select:none}
+.cashsplit-lbl input{cursor:pointer;accent-color:var(--accent)}
+.acct-del{background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;line-height:1;padding:4px 6px;border-radius:4px;flex-shrink:0}
+.acct-del:hover{background:var(--badge-debt-bg);color:var(--red)}
+.add-acct-btn{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--accent);background:none;border:none;cursor:pointer;padding:5px 0;margin-top:2px;font-family:inherit}
+.add-acct-btn:hover{opacity:.75}
+
+/* ── TOAST ───────────────────────────────────────────────────── */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(50px);background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12.5px;padding:9px 18px;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.3);z-index:300;transition:transform .25s,opacity .25s;opacity:0;pointer-events:none;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hbrand">
+    <h1>Net Worth Dashboard</h1>
+    <p>Personal Finance Overview</p>
+  </div>
+  <div class="hasof">As of <strong id="asOfLabel">—</strong></div>
+  <div class="vdiv"></div>
+  <div class="hactions">
+    <button class="btn btn-primary" id="addBtn">+ Add Month</button>
+    <button class="btn" id="editBtn">&#9998; Edit Month</button>
+    <button class="btn" id="exportBtn">&#8595; Export</button>
+    <label class="btn" style="cursor:pointer" title="Import JSON">
+      &#8593; Import
+      <input type="file" id="importFile" accept=".json" hidden>
+    </label>
+    <button class="btn btn-danger" id="deleteBtn" title="Delete most recent month">&#10005; Last</button>
+    <div class="vdiv"></div>
+    <button class="btn" id="acctBtn" title="Manage accounts">&#9881; Accounts</button>
+    <button class="btn btn-icon" id="themeBtn" title="Toggle theme">&#9728;</button>
+  </div>
+</header>
+
+<!-- Empty state (shown when no data file exists on server) -->
+<div class="empty-state" id="emptyState">
+  <svg class="empty-icon" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="4" y="28" width="10" height="20" rx="2" fill="currentColor"/>
+    <rect x="18" y="18" width="10" height="30" rx="2" fill="currentColor"/>
+    <rect x="32" y="8"  width="10" height="40" rx="2" fill="currentColor"/>
+    <rect x="46" y="22" width="6"  height="26" rx="2" fill="currentColor"/>
+  </svg>
+  <h2>No data loaded</h2>
+  <p>
+    Make sure the server is running, then refresh — or start fresh by setting up
+    your accounts, or import an existing <code>networth.json</code> file.
+  </p>
+  <code>python server.py</code>
+  <div class="empty-actions">
+    <button class="btn btn-primary" id="setupBtn">&#9881; Set Up Accounts</button>
+    <label class="btn" style="cursor:pointer">
+      &#8593; Import networth.json
+      <input type="file" id="importFile2" accept=".json" hidden>
+    </label>
+  </div>
+</div>
+
+<!-- Main dashboard (hidden until data loads) -->
+<div class="container" id="dashboard" style="display:none">
+  <div class="kpi-row" id="kpiRow"></div>
+
+  <div class="slabel">Net Worth Trend</div>
+  <div class="grid c1">
+    <div class="card">
+      <div class="card-title">Net Worth Over Time</div>
+      <div class="card-desc">Total assets minus liabilities, monthly</div>
+      <div class="chart-wrap" style="height:225px"><canvas id="cNw"></canvas></div>
+    </div>
+  </div>
+  <div class="grid c2">
+    <div class="card">
+      <div class="card-title">Month-over-Month Change</div>
+      <div class="card-desc">Net worth delta each month</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="cMom"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Investments vs Cash</div>
+      <div class="card-desc">Non-retirement investments (equity) vs total cash &amp; savings</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="cAlloc"></canvas></div>
+    </div>
+  </div>
+
+  <div class="slabel">Assets</div>
+  <div class="grid c1">
+    <div class="card">
+      <div class="card-title">Asset Categories Over Time</div>
+      <div class="card-desc">Stacked: Retirement &#xb7; Non-Ret Stocks &#xb7; Cash &amp; Savings &#xb7; Real Estate</div>
+      <div class="chart-wrap" style="height:245px"><canvas id="cStack"></canvas></div>
+    </div>
+  </div>
+  <div class="grid c2">
+    <div class="card">
+      <div class="card-title">Investment Accounts</div>
+      <div class="card-desc">Non-retirement portfolios over time (equity portion)</div>
+      <div class="chart-wrap" style="height:215px"><canvas id="cInvest"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Retirement Accounts</div>
+      <div class="card-desc">Retirement account balances over time</div>
+      <div class="chart-wrap" style="height:215px"><canvas id="cRet"></canvas></div>
+    </div>
+  </div>
+
+  <div class="slabel">Cash &amp; Liabilities</div>
+  <div class="grid c2">
+    <div class="card">
+      <div class="card-title">Cash &amp; Savings Accounts</div>
+      <div class="card-desc">Liquid cash holdings across institutions</div>
+      <div class="chart-wrap" style="height:215px"><canvas id="cCash"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Debt Paydown</div>
+      <div class="card-desc">Remaining principal over time</div>
+      <div class="chart-wrap" style="height:215px"><canvas id="cDebt"></canvas></div>
+    </div>
+  </div>
+
+  <div class="slabel">Account Detail &#8212; <span id="tableMonth">Latest</span></div>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Account</th><th>Type</th>
+          <th class="r" id="thPrev">Prev</th>
+          <th class="r" id="thCurr">Current</th>
+          <th class="r">Change</th><th class="r">% Chg</th>
+        </tr>
+      </thead>
+      <tbody id="tBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Data Panel (Add / Edit Month) -->
+<div class="overlay" id="overlay"></div>
+<div class="panel" id="panel">
+  <div class="panel-hdr">
+    <div>
+      <h2 id="panelTitle">Add Month</h2>
+      <p id="panelSubtitle">Pre-filled from last month &#8212; update what changed</p>
+    </div>
+    <button class="panel-close" id="panelClose">&#10005;</button>
+  </div>
+  <div class="panel-body" id="panelBody"></div>
+  <div class="panel-ftr">
+    <button class="btn" id="panelCancel">Cancel</button>
+    <button class="btn btn-primary" id="panelSave">Save Month</button>
+  </div>
+</div>
+
+<!-- Accounts Panel -->
+<div class="panel" id="acctPanel">
+  <div class="panel-hdr">
+    <div>
+      <h2>Manage Accounts</h2>
+      <p>Add, rename, or remove accounts by category</p>
+    </div>
+    <button class="panel-close" id="acctPanelClose">&#10005;</button>
+  </div>
+  <div class="panel-body" id="acctPanelBody"></div>
+  <div class="panel-ftr">
+    <span class="panel-ftr-note">Home value is always tracked separately</span>
+    <button class="btn" id="acctPanelCancel">Cancel</button>
+    <button class="btn btn-primary" id="acctPanelSave">Save</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ── SECURITY HELPER (GLOBAL_PREFERENCES.md §2.1) ─────────────────────────────
+function esc(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── GROUP METADATA (no account names — those live in data/networth.json) ──────
+const GROUP_META = {
+  ret:  { label:'Retirement Accounts', dot:'#79c0ff', badgeLabel:'Retirement',  src:'assets' },
+  stk:  { label:'Investment Accounts', dot:'#bc8cff', badgeLabel:'Investments', src:'assets' },
+  cash: { label:'Cash & Savings',      dot:'#3fb950', badgeLabel:'Cash/Savings',src:'assets' },
+  re:   { label:'Real Estate',         dot:'#ffa657', badgeLabel:'Real Estate',  src:'home'  },
+  debt: { label:'Liabilities',         dot:'#f85149', badgeLabel:'Debt',         src:'liab'  },
+};
+
+// Runtime GROUPS — rebuilt from state.config after every load or account save
+let GROUPS = [];
+
+function buildRuntimeGroups(config) {
+  const byGroup = {};
+  for (const acc of (config?.accounts ?? [])) {
+    (byGroup[acc.group] ??= []).push(acc);
+  }
+  return ['ret','stk','cash','re','debt'].map(id => {
+    const accs = (byGroup[id] ?? []).slice().sort((a,b) => a.name.localeCompare(b.name));
+    return {
+      id,
+      ...GROUP_META[id],
+      accounts:   accs.map(a => a.name),
+      cashSplits: new Set(accs.filter(a => a.cashSplit).map(a => a.name)),
+    };
+  });
+}
+
+// ── BRAND COLORS ──────────────────────────────────────────────────────────────
+const COLOR_MAP = {
+  'Fidelity 401k':       { color:'#00843d', bg:'rgba(0,132,61,.07)' },
+  'Fidelity Growth':     { color:'#00843d' },
+  'Fidelity Income':     { color:'#66bb6a' },
+  'Fidelity Cash':       { color:'#66bb6a' },
+  'Vanguard IRA':        { color:'#c8102e' },
+  'Vanguard Stocks':     { color:'#c8102e' },
+  'Etrade Stocks':       { color:'#7b2fbe' },
+  'Etrade Savings':      { color:'#7b2fbe', bg:'rgba(123,47,190,.07)' },
+  'Etrade Checking':     { color:'#ab47bc' },
+  'Wealthfront S&P 500': { color:'#1ec4b0' },
+  'Wealthfront Cash':    { color:'#1ec4b0' },
+  'Coinbase':            { color:'#0052ff' },
+  'Silo':                { color:'#4361ee' },
+  'HSA':                 { color:'#f59e0b' },
+  'BoA Check+Save':      { color:'#e31837' },
+  'Chase Checking':      { color:'#0066b3' },
+  'SoFi Check+Save':     { color:'#f778ba' },
+  'Mortgage':            { color:'#f85149', bg:'rgba(248,81,73,.07)' },
+  'Car Loan':            { color:'#ffa657' },
+};
+const FALLBACK_COLORS = ['#58a6ff','#3fb950','#ffa657','#f778ba','#d29922','#bc8cff','#79c0ff','#ff8c42','#4dc4ff','#b8f5b1','#f7b731','#fc5c65'];
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+function accountColor(name, idx) { return COLOR_MAP[name]?.color ?? FALLBACK_COLORS[idx % FALLBACK_COLORS.length]; }
+function accountBg(name)         { return COLOR_MAP[name]?.bg   ?? 'transparent'; }
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let state = null;
+
+// ── DATA API (localhost only — compliant per GLOBAL_PREFERENCES.md §1.1) ──────
+async function loadData() {
+  const res = await fetch('/api/data');
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function saveData(s) {
+  const res = await fetch('/api/data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(s),
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+// ── DERIVE ────────────────────────────────────────────────────────────────────
+function derive(s) {
+  const n   = s.months.length;
+  const sum = (keys, src) => Array.from({length:n}, (_,i) => keys.reduce((t,k) => t+(src[k]?.[i]??0), 0));
+
+  const retG  = GROUPS.find(g=>g.id==='ret')  ?? {accounts:[], cashSplits:new Set()};
+  const stkG  = GROUPS.find(g=>g.id==='stk')  ?? {accounts:[], cashSplits:new Set()};
+  const cashG = GROUPS.find(g=>g.id==='cash') ?? {accounts:[], cashSplits:new Set()};
+  const debtG = GROUPS.find(g=>g.id==='debt') ?? {accounts:[]};
+
+  const ret     = sum(retG.accounts, s.assets);
+  const stkEq   = sum(stkG.accounts, s.assets);
+  const invCash = sum([...stkG.cashSplits].map(n => n+'__cash'), s.assets);
+  const stk     = stkEq.map((v,i) => v + invCash[i]);
+  const cash    = sum(cashG.accounts, s.assets);
+  const cashTotal = cash.map((v,i) => v + invCash[i]);
+  const liq     = ret.map((v,i) => v + stk[i] + cash[i]);
+  const ta      = liq.map((v,i) => v + s.home[i]);
+  const tl      = sum(debtG.accounts, s.liabilities);
+  const nw      = ta.map((v,i) => v - tl[i]);
+  const mom     = nw.map((v,i) => i===0 ? null : v - nw[i-1]);
+  return { n, ret, stkEq, invCash, stk, cash, cashTotal, liq, ta, tl, nw, mom };
+}
+
+// ── FORMAT ────────────────────────────────────────────────────────────────────
+const abs$  = v => '$' + Math.round(Math.abs(v)).toLocaleString();
+const kFmt  = v => { const a=Math.abs(v),s=v<0?'-':''; return a>=1e6?`${s}$${(a/1e6).toFixed(2)}M`:`${s}$${(a/1e3).toFixed(0)}K`; };
+const mFmt  = v => v>=1e6?`$${(v/1e6).toFixed(2)}M`:abs$(v);
+
+// ── CHART THEME ───────────────────────────────────────────────────────────────
+const cssVar = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const isDark  = () => document.documentElement.dataset.theme === 'dark';
+const gOpts  = () => ({ color: cssVar('--chart-grid') });
+const tkOpts = () => ({ color: cssVar('--chart-tick'), maxRotation:0 });
+const xy     = () => ({ x:{grid:gOpts(),ticks:tkOpts()}, y:{grid:gOpts(),ticks:{...tkOpts(),callback:kFmt}} });
+const tip    = () => ({ callbacks:{ label: ctx=>` ${esc(ctx.dataset.label)}: ${abs$(ctx.raw)}` } });
+
+// ── CHARTS ────────────────────────────────────────────────────────────────────
+let charts = {};
+function destroyCharts() { Object.values(charts).forEach(c=>c.destroy()); charts={}; }
+function mk(id, cfg) { charts[id] = new Chart(document.getElementById(id), cfg); }
+
+function buildCharts(s, d) {
+  const dark = isDark();
+  const g=gOpts(), tk=tkOpts(), sc=xy();
+
+  const retG  = GROUPS.find(g=>g.id==='ret')  ?? {accounts:[], cashSplits:new Set()};
+  const stkG  = GROUPS.find(g=>g.id==='stk')  ?? {accounts:[], cashSplits:new Set()};
+  const cashG = GROUPS.find(g=>g.id==='cash') ?? {accounts:[], cashSplits:new Set()};
+  const debtG = GROUPS.find(g=>g.id==='debt') ?? {accounts:[]};
+
+  // 1 · Net worth trend
+  const nwCtx = document.getElementById('cNw').getContext('2d');
+  const grad  = nwCtx.createLinearGradient(0,0,0,225);
+  grad.addColorStop(0, dark?'rgba(88,166,255,.20)':'rgba(9,105,218,.10)');
+  grad.addColorStop(1,'rgba(88,166,255,.00)');
+  const yMin = Math.floor(Math.min(...d.nw)*0.97/1e5)*1e5;
+  mk('cNw',{type:'line',data:{labels:s.months,datasets:[
+    {label:'Net Worth',  data:d.nw, borderColor:'#58a6ff',backgroundColor:grad,fill:true,tension:.4,borderWidth:2.5,pointRadius:4,pointBackgroundColor:'#58a6ff',pointHoverRadius:6},
+    {label:'Total Assets',data:d.ta,borderColor:'#3fb950',backgroundColor:'transparent',fill:false,tension:.4,borderWidth:1.5,borderDash:[5,3],pointRadius:3},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',align:'end',labels:{boxWidth:12,padding:14}},tooltip:tip()},scales:{...sc,y:{...sc.y,min:yMin}}}});
+
+  // 2 · MoM bar
+  const momD=d.mom.slice(1), momL=s.months.slice(1);
+  mk('cMom',{type:'bar',data:{labels:momL,datasets:[{label:'MoM Δ',data:momD,
+    backgroundColor:momD.map(v=>v>=0?'rgba(63,185,80,.72)':'rgba(248,81,73,.72)'),
+    borderColor:momD.map(v=>v>=0?'#3fb950':'#f85149'),borderWidth:1,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.raw>=0?'+':''}${abs$(ctx.raw)}`}}},
+    scales:{x:{grid:{display:false},ticks:tk},y:{grid:g,ticks:{...tk,callback:v=>(v>=0?'+':'')+kFmt(v)}}}}});
+
+  // 3 · Investments vs Cash totals
+  mk('cAlloc',{type:'line',data:{labels:s.months,datasets:[
+    {label:'Non-Ret Investments',data:d.stkEq,    borderColor:'#bc8cff',backgroundColor:'rgba(188,140,255,.10)',fill:true, tension:.4,borderWidth:2.5,pointRadius:3},
+    {label:'Cash & Savings',     data:d.cashTotal, borderColor:'#3fb950',backgroundColor:'rgba(63,185,80,.10)', fill:true, tension:.4,borderWidth:2.5,pointRadius:3},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',align:'end',labels:{boxWidth:12,padding:14}},tooltip:{mode:'index',intersect:false,callbacks:{label:ctx=>` ${esc(ctx.dataset.label)}: ${abs$(ctx.raw)}`}}},scales:sc}});
+
+  // 4 · Stacked assets
+  mk('cStack',{type:'bar',data:{labels:s.months,datasets:[
+    {label:'Retirement',     data:d.ret,      backgroundColor:'rgba(121,192,255,.82)',stack:'s'},
+    {label:'Non-Ret Stocks', data:d.stkEq,    backgroundColor:'rgba(188,140,255,.82)',stack:'s'},
+    {label:'Cash & Savings', data:d.cashTotal,backgroundColor:'rgba(63,185,80,.82)',  stack:'s'},
+    {label:'Real Estate',    data:s.home,     backgroundColor:'rgba(255,166,87,.82)', stack:'s'},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',align:'end',labels:{boxWidth:12,padding:12}},tooltip:{mode:'index',intersect:false,...tip()}},
+  scales:{x:{grid:{display:false},ticks:tk,stacked:true},y:{grid:g,ticks:{...tk,callback:kFmt},stacked:true}}}});
+
+  // 5 · Investment accounts (dynamic, equity only)
+  const invDS = stkG.accounts.map((name, idx) => {
+    const color = accountColor(name, idx);
+    const dashed = idx >= 4;
+    return { label:name, data:s.assets[name]??[], borderColor:color, backgroundColor:'transparent',
+      fill:false, tension:.4, ...(dashed?{borderDash:[4,3],borderWidth:1.5,pointRadius:2}:{borderWidth:2,pointRadius:3}) };
+  });
+  mk('cInvest',{type:'line',data:{labels:s.months,datasets:invDS},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',align:'end',labels:{boxWidth:10,padding:9,font:{size:10}}},tooltip:tip()},scales:sc}});
+
+  // 6 · Retirement accounts (dynamic)
+  const retDS = retG.accounts.map((name, idx) => {
+    const color = accountColor(name, idx);
+    return { label:name, data:s.assets[name]??[], borderColor:color,
+      backgroundColor: idx===0 ? hexToRgba(color,.07) : 'transparent',
+      fill:idx===0, tension:.4, borderWidth:idx===0?2.5:2, pointRadius:3 };
+  });
+  mk('cRet',{type:'line',data:{labels:s.months,datasets:retDS},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',align:'end',labels:{boxWidth:10,padding:9}},tooltip:tip()},scales:sc}});
+
+  // 7 · Cash accounts (dynamic) + investment __cash lines
+  const cashDS = cashG.accounts.map((name, idx) => {
+    const color = accountColor(name, idx);
+    const dashed = idx >= 2;
+    return { label:name, data:s.assets[name]??[], borderColor:color,
+      backgroundColor: idx===0 ? hexToRgba(color,.07) : 'transparent',
+      fill:idx===0, tension:.4, ...(dashed?{borderDash:[4,3],borderWidth:1.5,pointRadius:2}:{borderWidth:2,pointRadius:3}) };
+  });
+  for (const name of stkG.cashSplits) {
+    const cashKey = name + '__cash';
+    const data = s.assets[cashKey];
+    if (!data) continue;
+    cashDS.push({ label:name+' [Cash]', data, borderColor:accountColor(name,0),
+      backgroundColor:'transparent', fill:false, tension:.4,
+      borderDash:[2,4], borderWidth:1.5, pointRadius:2 });
+  }
+  mk('cCash',{type:'line',data:{labels:s.months,datasets:cashDS},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',align:'end',labels:{boxWidth:10,padding:9,font:{size:10}}},tooltip:tip()},scales:sc}});
+
+  // 8 · Debt (dynamic)
+  const debtDS = debtG.accounts.map((name, idx) => {
+    const color = accountColor(name, idx);
+    return { label:name, data:s.liabilities[name]??[], borderColor:color,
+      backgroundColor: idx===0 ? hexToRgba(color,.07) : 'transparent',
+      fill:idx===0, tension:.4, borderWidth:idx===0?2.5:2, pointRadius:3 };
+  });
+  debtDS.push({ label:'Total Debt', data:d.tl, borderColor:'#7d8590', backgroundColor:'transparent',
+    fill:false, tension:.4, borderWidth:1.5, pointRadius:2, borderDash:[5,3] });
+  mk('cDebt',{type:'line',data:{labels:s.months,datasets:debtDS},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',align:'end',labels:{boxWidth:10,padding:9}},tooltip:tip()},
+  scales:{x:{grid:{display:false},ticks:tk},y:{grid:g,ticks:{...tk,callback:kFmt},min:0}}}});
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────────────────
+function renderKPIs(s, d) {
+  const L=d.n-1, nw=d.nw[L], prev=d.nw[L-1]??nw;
+  const delta=nw-prev, pct=prev?delta/prev*100:0;
+  const dta=d.tl[L]/d.ta[L]*100, dta0=d.tl[0]/d.ta[0]*100;
+  const prevLabel  = esc(s.months[L-1] ?? '—');
+  const firstLabel = esc(s.months[0]);
+  const retAccts   = (GROUPS.find(g=>g.id==='ret')?.accounts ?? []).map(esc).join(' &middot; ') || '&mdash;';
+  const kpis=[
+    {lbl:'Net Worth',        val:mFmt(nw),       sub:`${delta>=0?'▲':'▼'} ${abs$(delta)} (${Math.abs(pct).toFixed(1)}%) vs ${prevLabel}`, cls:delta>=0?'up':'dn'},
+    {lbl:'Total Assets',     val:mFmt(d.ta[L]),  sub:`Liquid ${kFmt(d.liq[L])} &middot; RE ${kFmt(s.home[L])}`, cls:''},
+    {lbl:'Total Liabilities',val:kFmt(d.tl[L]),  sub:L>0?`&#9660; ${abs$(Math.abs(d.tl[L]-d.tl[L-1]))} paid down vs prior`:'&mdash;', cls:'up'},
+    {lbl:'Retirement Accts', val:mFmt(d.ret[L]), sub:retAccts, cls:''},
+    {lbl:'Debt-to-Assets',   val:dta.toFixed(1)+'%', sub:`${dta<=dta0?'&#8595;':'&#8593;'} from ${dta0.toFixed(1)}% in ${firstLabel}`, cls:dta<=dta0?'up':'dn'},
+  ];
+  document.getElementById('kpiRow').innerHTML = kpis.map(k=>`
+    <div class="kpi">
+      <div class="kpi-lbl">${k.lbl}</div>
+      <div class="kpi-val">${k.val}</div>
+      <div class="kpi-sub ${k.cls}">${k.sub}</div>
+    </div>`).join('');
+}
+
+// ── TABLE ─────────────────────────────────────────────────────────────────────
+function renderTable(s, d) {
+  const L=d.n-1, P=L-1;
+  document.getElementById('tableMonth').textContent = s.months[L];
+  document.getElementById('thPrev').textContent = P>=0 ? s.months[P] : '—';
+  document.getElementById('thCurr').textContent = s.months[L];
+  const rows=[];
+
+  function tableRow(name, gid, badgeLabel, pv, cv, isDebt, indent) {
+    const delta=cv-pv, pct=pv>0?delta/pv*100:null;
+    const dstr = isDebt ? `${abs$(Math.abs(delta))} paid` : `${delta>=0?'+':'−'}${abs$(delta)}`;
+    const cls  = isDebt ? 'up' : (delta>=0?'up':'dn');
+    const sfx  = isDebt ? ` <small style="color:var(--muted)">(liability)</small>` : '';
+    const nameCell = indent
+      ? `<span style="padding-left:16px;color:var(--muted);font-size:11px">${esc(name)}</span>`
+      : `${esc(name)}${sfx}`;
+    return `<tr>
+      <td>${nameCell}</td>
+      <td><span class="badge ${gid}">${esc(badgeLabel)}</span></td>
+      <td class="r">${abs$(pv)}</td>
+      <td class="r">${abs$(cv)}</td>
+      <td class="r ${cls}">${dstr}</td>
+      <td class="r ${cls}">${pct!==null?(pct>=0?'+':'')+pct.toFixed(1)+'%':'&mdash;'}</td>
+    </tr>`;
+  }
+
+  for (const grp of GROUPS) {
+    for (const a of grp.accounts) {
+      let pv, cv;
+      if      (grp.src==='home') { pv=s.home[P]??0;               cv=s.home[L]; }
+      else if (grp.src==='liab') { pv=s.liabilities[a]?.[P]??0;   cv=s.liabilities[a]?.[L]??0; }
+      else                       { pv=s.assets[a]?.[P]??0;         cv=s.assets[a]?.[L]??0; }
+      const displayName = grp.src==='home' ? 'Home (Est. Value)' : a;
+      rows.push(tableRow(displayName, grp.id, grp.badgeLabel, pv, cv, grp.src==='liab', false));
+
+      // cashSplit sub-row: show investment-held cash separately
+      if (grp.id==='stk' && grp.cashSplits.has(a)) {
+        const cpv = s.assets[a+'__cash']?.[P]??0;
+        const ccv = s.assets[a+'__cash']?.[L]??0;
+        if (ccv > 0 || cpv > 0) {
+          rows.push(tableRow(a+' [Cash]', 'cash', 'Cash/Savings', cpv, ccv, false, true));
+        }
+      }
+    }
+  }
+  document.getElementById('tBody').innerHTML = rows.join('');
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function render() {
+  if (!state?.months?.length) return;
+  const d = derive(state);
+  document.getElementById('asOfLabel').textContent = state.months[d.n-1];
+  renderKPIs(state, d);
+  destroyCharts();
+  buildCharts(state, d);
+  renderTable(state, d);
+}
+
+function showDashboard() {
+  document.getElementById('emptyState').classList.remove('visible');
+  document.getElementById('dashboard').style.display = '';
+}
+function showEmptyState() {
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('emptyState').classList.add('visible');
+}
+
+// ── PANEL HELPERS ─────────────────────────────────────────────────────────────
+function slug(str) { return str.toLowerCase().replace(/[^a-z0-9]+/g,'_'); }
+
+function nextLabel(last) {
+  if (!last) return '';
+  const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const m = last.match(/^(\w+)\s+'(\d{2})$/);
+  if (!m) return '';
+  const mi=MN.indexOf(m[1]); if(mi<0) return '';
+  const ni=(mi+1)%12, yr=parseInt(m[2])+(ni===0?1:0);
+  return `${MN[ni]} '${String(yr).padStart(2,'0')}`;
+}
+
+function closeAnyPanel() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('panel').classList.remove('open');
+  document.getElementById('acctPanel').classList.remove('open');
+}
+
+// ── ADD / EDIT MONTH PANEL ────────────────────────────────────────────────────
+let panelMode = 'add'; // 'add' | 'edit'
+let editIndex = -1;
+
+function buildAccountFields(srcIdx) {
+  let html = '';
+  for (const grp of GROUPS) {
+    if (grp.src === 're') continue; // home handled separately below
+    html += `<div class="panel-sec">
+      <div class="psec-lbl"><span class="psec-dot" style="background:${grp.dot}"></span>${esc(grp.label)}</div>`;
+    for (const a of grp.accounts) {
+      const isCashSplit = grp.id === 'stk' && grp.cashSplits.has(a);
+      if (isCashSplit) {
+        const vEq   = state.assets[a]?.[srcIdx]??0;
+        const vCash = state.assets[a+'__cash']?.[srcIdx]??0;
+        html += `<div class="frow">
+          <span class="flabel">${esc(a)}</span>
+          <div class="split-inputs">
+            <div class="split-row">
+              <span class="split-tag">Equity</span>
+              <div class="finput-wrap"><span class="fpfx">$</span>
+                <input class="finput" id="p_${slug(a)}" type="number" min="0" step="1" value="${Math.round(vEq)}">
+              </div>
+            </div>
+            <div class="split-row">
+              <span class="split-tag">Cash</span>
+              <div class="finput-wrap"><span class="fpfx">$</span>
+                <input class="finput" id="p_${slug(a)}__cash" type="number" min="0" step="1" value="${Math.round(vCash)}">
+              </div>
+            </div>
+          </div>
+        </div>`;
+      } else {
+        let v;
+        if   (grp.src==='liab') v = state.liabilities[a]?.[srcIdx]??0;
+        else                    v = state.assets[a]?.[srcIdx]??0;
+        html += `<div class="frow">
+          <span class="flabel">${esc(a)}</span>
+          <div class="finput-wrap"><span class="fpfx">$</span>
+            <input class="finput" id="p_${slug(a)}" type="number" min="0" step="1" value="${Math.round(v)}">
+          </div>
+        </div>`;
+      }
+    }
+    html += `</div>`;
+  }
+  // Real estate always shown
+  html += `<div class="panel-sec">
+    <div class="psec-lbl"><span class="psec-dot" style="background:#ffa657"></span>Real Estate</div>
+    <div class="frow">
+      <span class="flabel">Home (Est. Value)</span>
+      <div class="finput-wrap"><span class="fpfx">$</span>
+        <input class="finput" id="pHome" type="number" min="0" step="1" value="${Math.round(state.home?.[srcIdx]??0)}">
+      </div>
+    </div>
+  </div>`;
+  return html;
+}
+
+function buildPanel(mode, idx) {
+  panelMode = mode;
+  editIndex = idx ?? (state.months.length - 1);
+  const srcIdx = mode === 'edit' ? editIndex : Math.max(0, state.months.length - 1);
+
+  let header;
+  if (mode === 'edit') {
+    const opts = state.months.map((m, i) =>
+      `<option value="${i}"${i === editIndex ? ' selected' : ''}>${esc(m)}</option>`
+    ).join('');
+    header = `<div class="month-sec">
+      <label>Select Month to Edit</label>
+      <select class="minput" id="pMonthSelect" autocomplete="off">${opts}</select>
+    </div>`;
+  } else {
+    header = `<div class="month-sec">
+      <label>Month Label</label>
+      <input class="minput" id="pMonth" type="text" value="${esc(nextLabel(state.months.at(-1)))}" autocomplete="off" spellcheck="false">
+    </div>`;
+  }
+
+  document.getElementById('panelBody').innerHTML = header + buildAccountFields(srcIdx);
+
+  if (mode === 'edit') {
+    document.getElementById('pMonthSelect').addEventListener('change', e => {
+      editIndex = parseInt(e.target.value, 10);
+      repopulateEditFields();
+    });
+  }
+}
+
+function repopulateEditFields() {
+  const stkG = GROUPS.find(g=>g.id==='stk') ?? {accounts:[], cashSplits:new Set()};
+  for (const grp of GROUPS) {
+    if (grp.src === 're') continue;
+    for (const a of grp.accounts) {
+      let v;
+      if   (grp.src==='liab') v = state.liabilities[a]?.[editIndex]??0;
+      else                    v = state.assets[a]?.[editIndex]??0;
+      const el = document.getElementById(`p_${slug(a)}`);
+      if (el) el.value = Math.round(v);
+      if (stkG.cashSplits.has(a)) {
+        const ce = document.getElementById(`p_${slug(a)}__cash`);
+        if (ce) ce.value = Math.round(state.assets[a+'__cash']?.[editIndex]??0);
+      }
+    }
+  }
+  const homeEl = document.getElementById('pHome');
+  if (homeEl) homeEl.value = Math.round(state.home?.[editIndex]??0);
+}
+
+function openPanel() {
+  if (!state) { toast('Set up accounts first via ⚙ Accounts.'); return; }
+  document.getElementById('panelTitle').textContent    = 'Add Month';
+  document.getElementById('panelSubtitle').textContent = state.months.length
+    ? 'Pre-filled from last month — update what changed'
+    : 'Enter values for your first month';
+  document.getElementById('panelSave').textContent = 'Save Month';
+  buildPanel('add');
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('panel').classList.add('open');
+  document.getElementById(state.months.length ? 'pMonth' : 'pMonth')?.focus();
+}
+
+function openEditPanel() {
+  if (!state?.months?.length) { toast('No months to edit yet.'); return; }
+  document.getElementById('panelTitle').textContent    = 'Edit Month';
+  document.getElementById('panelSubtitle').textContent = 'Select a month and update its values';
+  document.getElementById('panelSave').textContent = 'Save Changes';
+  buildPanel('edit', state.months.length - 1);
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('panel').classList.add('open');
+  document.getElementById('pMonthSelect').focus();
+}
+
+function closePanel() { closeAnyPanel(); }
+
+async function submitPanel() {
+  if (panelMode === 'edit') { await submitEdit(); } else { await submitAdd(); }
+}
+
+async function submitAdd() {
+  const label = document.getElementById('pMonth').value.trim();
+  if (!label)                       { toast('Enter a month label.'); return; }
+  if (state.months.includes(label)) { toast(`"${esc(label)}" already exists.`); return; }
+  const val = id => parseFloat(document.getElementById(id)?.value) || 0;
+
+  const next = JSON.parse(JSON.stringify(state));
+  next.months.push(label);
+  for (const grp of GROUPS) {
+    if (grp.src === 're') continue;
+    if (grp.src === 'liab') {
+      for (const a of grp.accounts) {
+        if (!next.liabilities[a]) next.liabilities[a] = new Array(next.months.length-1).fill(0);
+        next.liabilities[a].push(val(`p_${slug(a)}`));
+      }
+    } else {
+      for (const a of grp.accounts) {
+        if (!next.assets[a]) next.assets[a] = new Array(next.months.length-1).fill(0);
+        next.assets[a].push(val(`p_${slug(a)}`));
+        if (grp.id === 'stk' && grp.cashSplits.has(a)) {
+          const ck = a + '__cash';
+          if (!next.assets[ck]) next.assets[ck] = new Array(next.months.length-1).fill(0);
+          next.assets[ck].push(val(`p_${slug(a)}__cash`));
+        }
+      }
+    }
+  }
+  next.home.push(val('pHome'));
+
+  try {
+    await saveData(next);
+    state = next;
+    closeAnyPanel();
+    showDashboard();
+    render();
+    toast(`✓ ${esc(label)} saved`);
+  } catch(e) {
+    toast('Save failed — is the server running?');
+  }
+}
+
+async function submitEdit() {
+  const val = id => parseFloat(document.getElementById(id)?.value) || 0;
+  const i   = editIndex;
+  const lbl = state.months[i];
+  const next = JSON.parse(JSON.stringify(state));
+  next.home[i] = val('pHome');
+  for (const grp of GROUPS) {
+    if (grp.src === 're') continue;
+    for (const a of grp.accounts) {
+      if (grp.src === 'liab') {
+        if (!next.liabilities[a]) next.liabilities[a] = new Array(next.months.length).fill(0);
+        next.liabilities[a][i] = val(`p_${slug(a)}`);
+      } else {
+        if (!next.assets[a]) next.assets[a] = new Array(next.months.length).fill(0);
+        next.assets[a][i] = val(`p_${slug(a)}`);
+        if (grp.id === 'stk' && grp.cashSplits.has(a)) {
+          const ck = a + '__cash';
+          if (!next.assets[ck]) next.assets[ck] = new Array(next.months.length).fill(0);
+          next.assets[ck][i] = val(`p_${slug(a)}__cash`);
+        }
+      }
+    }
+  }
+  try {
+    await saveData(next);
+    state = next;
+    closeAnyPanel();
+    render();
+    toast(`✓ ${esc(lbl)} updated`);
+  } catch(e) {
+    toast('Save failed — is the server running?');
+  }
+}
+
+// ── MANAGE ACCOUNTS PANEL ─────────────────────────────────────────────────────
+function acctRow(name, gid, cashSplit) {
+  const groupOpts = [['ret','Retirement'],['stk','Investment'],['cash','Cash/Savings'],['debt','Liability']]
+    .map(([id,lbl]) => `<option value="${id}"${gid===id?' selected':''}>${lbl}</option>`).join('');
+  return `<div class="acct-row" data-group="${gid}">
+    <input class="acct-name-input" type="text" value="${esc(name)}" data-original="${esc(name)}" autocomplete="off" spellcheck="false" placeholder="Account name">
+    <select class="acct-group-sel">${groupOpts}</select>
+    <label class="cashsplit-lbl"${gid!=='stk'?' style="visibility:hidden"':''} title="Enter equity + cash separately"><input type="checkbox"${cashSplit?' checked':''}> Cash Split</label>
+    <button class="acct-del" title="Remove">&#10005;</button>
+  </div>`;
+}
+
+function buildAcctPanel() {
+  const byGroup = {};
+  for (const acc of (state?.config?.accounts ?? [])) {
+    (byGroup[acc.group] ??= []).push(acc);
+  }
+  for (const g of Object.values(byGroup)) g.sort((a,b) => a.name.localeCompare(b.name));
+  const groupOrder = ['ret','stk','cash','debt'];
+  let html = '';
+  for (const gid of groupOrder) {
+    const meta = GROUP_META[gid];
+    html += `<div class="panel-sec" data-group-section="${gid}">
+      <div class="psec-lbl"><span class="psec-dot" style="background:${meta.dot}"></span>${esc(meta.label)}</div>`;
+    for (const acc of (byGroup[gid] ?? [])) {
+      html += acctRow(acc.name, gid, acc.cashSplit ?? false);
+    }
+    html += `<button class="add-acct-btn" data-group="${gid}">+ Add Account</button>
+    </div>`;
+  }
+  document.getElementById('acctPanelBody').innerHTML = html;
+}
+
+function openAcctPanel() {
+  buildAcctPanel();
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('acctPanel').classList.add('open');
+}
+
+async function saveAccounts() {
+  const rows = [...document.querySelectorAll('#acctPanelBody .acct-row')];
+  const panelAccounts = rows.map(row => ({
+    name:      row.querySelector('.acct-name-input').value.trim(),
+    group:     row.querySelector('.acct-group-sel').value,
+    cashSplit: row.querySelector('input[type=checkbox]')?.checked ?? false,
+    origName:  row.querySelector('.acct-name-input').dataset.original,
+  })).filter(a => a.name);
+
+  const n = state?.months?.length ?? 0;
+  const next = JSON.parse(JSON.stringify(state ?? { months:[], assets:{}, home:[], liabilities:{} }));
+  if (!next.assets)      next.assets      = {};
+  if (!next.liabilities) next.liabilities = {};
+  if (!next.home)        next.home        = [];
+
+  const origNamesPresent = new Set(panelAccounts.map(a => a.origName).filter(Boolean));
+  const oldAccounts = state?.config?.accounts ?? [];
+  const oldByName   = Object.fromEntries(oldAccounts.map(a => [a.name, a]));
+
+  // 1. Delete removed accounts
+  for (const old of oldAccounts) {
+    if (origNamesPresent.has(old.name)) continue;
+    if (old.group === 'debt') { delete next.liabilities[old.name]; }
+    else { delete next.assets[old.name]; delete next.assets[old.name+'__cash']; }
+  }
+
+  // 2. Move / rename / create accounts
+  for (const acc of panelAccounts) {
+    const isNew      = !acc.origName;
+    const oldAcc     = acc.origName ? (oldByName[acc.origName] ?? null) : null;
+    const origGroup  = oldAcc?.group ?? acc.group;
+    const srcKey     = acc.origName;
+    const dstKey     = acc.name;
+    const srcIsDebt  = origGroup === 'debt';
+    const dstIsDebt  = acc.group === 'debt';
+
+    if (isNew) {
+      const bucket = dstIsDebt ? next.liabilities : next.assets;
+      if (!bucket[dstKey]) bucket[dstKey] = new Array(n).fill(0);
+      continue;
+    }
+
+    const srcBucket = srcIsDebt ? next.liabilities : next.assets;
+    const dstBucket = dstIsDebt ? next.liabilities : next.assets;
+
+    // Move data to destination (handles rename + reclassification in one step)
+    if (srcBucket !== dstBucket || srcKey !== dstKey) {
+      dstBucket[dstKey] = srcBucket[srcKey] ?? new Array(n).fill(0);
+      delete srcBucket[srcKey];
+    }
+
+    // Handle __cash key
+    const srcCashKey = srcKey + '__cash';
+    const dstCashKey = dstKey + '__cash';
+    if (origGroup === 'stk') {
+      if (acc.group !== 'stk') {
+        // Leaving investment group: drop cash split data
+        delete next.assets[srcCashKey];
+        if (dstCashKey !== srcCashKey) delete next.assets[dstCashKey];
+      } else if (srcKey !== dstKey && next.assets[srcCashKey] !== undefined) {
+        // Renamed within stk: carry __cash along
+        next.assets[dstCashKey] = next.assets[srcCashKey];
+        delete next.assets[srcCashKey];
+      }
+    }
+
+    // 3. Handle cashSplit toggle (stk only)
+    if (acc.group === 'stk') {
+      const wasOn   = oldAcc?.cashSplit ?? false;
+      const cashKey = dstKey + '__cash';
+      if (acc.cashSplit && !wasOn && !next.assets[cashKey]) {
+        next.assets[cashKey] = new Array(n).fill(0);
+      } else if (!acc.cashSplit && wasOn) {
+        delete next.assets[cashKey];
+      }
+    }
+  }
+
+  // 4. Update config
+  next.config = { accounts: panelAccounts.map(a => {
+    const r = { name:a.name, group:a.group };
+    if (a.cashSplit) r.cashSplit = true;
+    return r;
+  })};
+
+  try {
+    await saveData(next);
+    state = next;
+    GROUPS = buildRuntimeGroups(state.config);
+    closeAnyPanel();
+    if (state.months.length > 0) { showDashboard(); render(); }
+    else showEmptyState();
+    toast('✓ Accounts saved');
+  } catch(e) {
+    toast('Save failed — is the server running?');
+  }
+}
+
+document.getElementById('acctPanelBody').addEventListener('change', e => {
+  const sel = e.target.closest('.acct-group-sel');
+  if (!sel) return;
+  const row   = sel.closest('.acct-row');
+  const newGid = sel.value;
+  row.dataset.group = newGid;
+  const csLbl = row.querySelector('.cashsplit-lbl');
+  if (csLbl) csLbl.style.visibility = newGid === 'stk' ? '' : 'hidden';
+});
+
+document.getElementById('acctPanelBody').addEventListener('click', e => {
+  const delBtn = e.target.closest('.acct-del');
+  if (delBtn) { delBtn.closest('.acct-row').remove(); return; }
+  const addBtn = e.target.closest('.add-acct-btn');
+  if (addBtn) {
+    const gid = addBtn.dataset.group;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = acctRow('', gid, false);
+    addBtn.closest('[data-group-section]').insertBefore(tmp.firstElementChild, addBtn);
+    tmp.firstElementChild?.querySelector('.acct-name-input')?.focus();
+  }
+});
+
+// ── DELETE LAST ───────────────────────────────────────────────────────────────
+async function deleteLastMonth() {
+  if (!state?.months?.length || state.months.length <= 1) { toast('Nothing to delete.'); return; }
+  const lbl = state.months.at(-1);
+  if (!confirm(`Delete "${lbl}"? This cannot be undone.`)) return;
+
+  const next = JSON.parse(JSON.stringify(state));
+  next.months.pop();
+  next.home.pop();
+  Object.values(next.assets).forEach(a => a.pop());
+  Object.values(next.liabilities).forEach(a => a.pop());
+
+  try {
+    await saveData(next);
+    state = next;
+    render();
+    toast(`Deleted ${esc(lbl)}`);
+  } catch(e) {
+    toast('Delete failed — is the server running?');
+  }
+}
+
+// ── EXPORT ────────────────────────────────────────────────────────────────────
+function exportData() { window.location.href = '/api/export'; }
+
+// ── IMPORT ────────────────────────────────────────────────────────────────────
+function handleImportFile(input) {
+  const f = input.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = async ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (!d.months || !d.assets || !d.home || !d.liabilities) throw new Error('Missing fields');
+      await saveData(d);
+      state = d;
+      GROUPS = buildRuntimeGroups(state.config);
+      if (!state.config) toast('Tip: click ⚙ Accounts to assign account categories');
+      showDashboard();
+      render();
+      toast('✓ Imported successfully');
+    } catch(e) {
+      toast('Import failed: invalid file or server unreachable');
+    }
+    input.value = '';
+  };
+  r.readAsText(f);
+}
+
+// ── THEME ─────────────────────────────────────────────────────────────────────
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  document.getElementById('themeBtn').innerHTML = t==='dark' ? '&#9728;' : '&#9790;';
+  localStorage.setItem('nw_theme', t);
+  Chart.defaults.color = cssVar('--muted');
+  if (state?.months?.length) { destroyCharts(); buildCharts(state, derive(state)); }
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+let _tt;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_tt);
+  _tt = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ── EVENTS ────────────────────────────────────────────────────────────────────
+document.getElementById('addBtn').addEventListener('click', openPanel);
+document.getElementById('editBtn').addEventListener('click', openEditPanel);
+document.getElementById('panelClose').addEventListener('click', closeAnyPanel);
+document.getElementById('panelCancel').addEventListener('click', closeAnyPanel);
+document.getElementById('panelSave').addEventListener('click', submitPanel);
+document.getElementById('overlay').addEventListener('click', closeAnyPanel);
+document.getElementById('exportBtn').addEventListener('click', exportData);
+document.getElementById('deleteBtn').addEventListener('click', deleteLastMonth);
+document.getElementById('acctBtn').addEventListener('click', openAcctPanel);
+document.getElementById('setupBtn').addEventListener('click', openAcctPanel);
+document.getElementById('acctPanelClose').addEventListener('click', closeAnyPanel);
+document.getElementById('acctPanelCancel').addEventListener('click', closeAnyPanel);
+document.getElementById('acctPanelSave').addEventListener('click', saveAccounts);
+document.getElementById('themeBtn').addEventListener('click', () => applyTheme(isDark() ? 'light' : 'dark'));
+document.getElementById('importFile').addEventListener('change', e => handleImportFile(e.target));
+document.getElementById('importFile2').addEventListener('change', e => handleImportFile(e.target));
+document.getElementById('panel').addEventListener('keydown', e => { if (e.key==='Enter') { e.preventDefault(); submitPanel(); } });
+document.addEventListener('keydown', e => { if (e.key==='Escape') closeAnyPanel(); });
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+Chart.defaults.font.family = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
+Chart.defaults.font.size   = 11;
+
+(async function init() {
+  const theme = localStorage.getItem('nw_theme') || 'light';
+  document.documentElement.dataset.theme = theme;
+  document.getElementById('themeBtn').innerHTML = theme==='dark' ? '&#9728;' : '&#9790;';
+  Chart.defaults.color = cssVar('--muted');
+
+  try {
+    state = await loadData();
+    GROUPS = buildRuntimeGroups(state.config);
+    if (state.months?.length > 0) { showDashboard(); render(); }
+    else showEmptyState();
+  } catch(_) {
+    showEmptyState();
+  }
+})();
+</script>
+</body>
+</html>
