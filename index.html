@@ -881,10 +881,17 @@ function buildAcctPanel() {
     (byGroup[acc.group] ??= []).push(acc);
   }
   for (const g of Object.values(byGroup)) g.sort((a,b) => a.name.localeCompare(b.name));
-  const groupOrder = ['ret','stk','cash','debt'];
+  const groupOrder = ['ret','stk','cash','re','debt'];
   let html = '';
   for (const gid of groupOrder) {
     const meta = GROUP_META[gid];
+    if (gid === 're') {
+      html += `<div class="panel-sec">
+        <div class="psec-lbl"><span class="psec-dot" style="background:${meta.dot}"></span>${esc(meta.label)}</div>
+        <p style="font-size:11px;color:var(--muted);margin:4px 0 0">Home (Est. Value) is tracked separately and entered when adding or editing a month. It cannot be assigned accounts.</p>
+      </div>`;
+      continue;
+    }
     html += `<div class="panel-sec" data-group-section="${gid}">
       <div class="psec-lbl"><span class="psec-dot" style="background:${meta.dot}"></span>${esc(meta.label)}</div>`;
     for (const acc of (byGroup[gid] ?? [])) {

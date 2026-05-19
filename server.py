@@ -9,7 +9,7 @@ import os
 import sys
 from flask import Flask, abort, jsonify, request, send_from_directory
 
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 
 BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE = os.path.join(BASE_DIR, "data", "networth.json")
