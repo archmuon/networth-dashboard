@@ -150,6 +150,9 @@ tr:hover td{background:var(--surface2)}
 .add-acct-btn{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--accent);background:none;border:none;cursor:pointer;padding:5px 0;margin-top:2px;font-family:inherit}
 .add-acct-btn:hover{opacity:.75}
 
+/* ── SPLIT NOTE ──────────────────────────────────────────────── */
+.split-note{font-size:10.5px;color:var(--muted);margin:2px 0 8px;line-height:1.4}
+
 /* ── TOAST ───────────────────────────────────────────────────── */
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(50px);background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12.5px;padding:9px 18px;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.3);z-index:300;transition:transform .25s,opacity .25s;opacity:0;pointer-events:none;white-space:nowrap}
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
@@ -414,10 +417,11 @@ function derive(s) {
   const cashG = GROUPS.find(g=>g.id==='cash') ?? {accounts:[], cashSplits:new Set()};
   const debtG = GROUPS.find(g=>g.id==='debt') ?? {accounts:[]};
 
-  const ret     = sum(retG.accounts, s.assets);
-  const stkEq   = sum(stkG.accounts, s.assets);
-  const invCash = sum([...stkG.cashSplits].map(n => n+'__cash'), s.assets);
-  const stk     = stkEq.map((v,i) => v + invCash[i]);
+  const ret      = sum(retG.accounts, s.assets);
+  const stkTotal = sum(stkG.accounts, s.assets);
+  const invCash  = sum([...stkG.cashSplits].map(n => n+'__cash'), s.assets);
+  const stkEq    = stkTotal.map((v,i) => v - invCash[i]);
+  const stk      = stkTotal;
   const cash    = sum(cashG.accounts, s.assets);
   const cashTotal = cash.map((v,i) => v + invCash[i]);
   const liq     = ret.map((v,i) => v + stk[i] + cash[i]);
@@ -657,7 +661,8 @@ function buildAccountFields(srcIdx) {
   for (const grp of GROUPS) {
     if (grp.id === 're') continue; // home handled separately below
     html += `<div class="panel-sec">
-      <div class="psec-lbl"><span class="psec-dot" style="background:${grp.dot}"></span>${esc(grp.label)}</div>`;
+      <div class="psec-lbl"><span class="psec-dot" style="background:${grp.dot}"></span>${esc(grp.label)}</div>
+      ${grp.id==='stk' && grp.cashSplits.size>0 ? `<p class="split-note">For split accounts: enter the full balance under Total and the cash position under Cash — equity is derived automatically.</p>` : ''}`;
     for (const a of grp.accounts) {
       const isCashSplit = grp.id === 'stk' && grp.cashSplits.has(a);
       if (isCashSplit) {
@@ -667,7 +672,7 @@ function buildAccountFields(srcIdx) {
           <span class="flabel">${esc(a)}</span>
           <div class="split-inputs">
             <div class="split-row">
-              <span class="split-tag">Equity</span>
+              <span class="split-tag">Total</span>
               <div class="finput-wrap"><span class="fpfx">$</span>
                 <input class="finput" id="p_${slug(a)}" type="number" min="0" step="1" value="${Math.round(vEq)}">
               </div>
