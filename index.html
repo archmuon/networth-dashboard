@@ -655,7 +655,7 @@ let editIndex = -1;
 function buildAccountFields(srcIdx) {
   let html = '';
   for (const grp of GROUPS) {
-    if (grp.src === 're') continue; // home handled separately below
+    if (grp.id === 're') continue; // home handled separately below
     html += `<div class="panel-sec">
       <div class="psec-lbl"><span class="psec-dot" style="background:${grp.dot}"></span>${esc(grp.label)}</div>`;
     for (const a of grp.accounts) {
