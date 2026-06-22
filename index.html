@@ -220,7 +220,7 @@ tr:hover td{background:var(--surface2)}
   <div class="grid c2">
     <div class="card">
       <div class="card-title">Month-over-Month Change</div>
-      <div class="card-desc">Net worth delta each month</div>
+      <div class="card-desc">Each bar spans last month → this month; green = gain, red = loss</div>
       <div class="chart-wrap" style="height:200px"><canvas id="cMom"></canvas></div>
     </div>
     <div class="card">
@@ -470,13 +470,24 @@ function buildCharts(s, d) {
     {label:'Total Assets',data:d.ta,borderColor:'#3fb950',backgroundColor:'transparent',fill:false,tension:.4,borderWidth:1.5,borderDash:[5,3],pointRadius:3},
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',align:'end',labels:{boxWidth:12,padding:14}},tooltip:tip()},scales:{...sc,y:{...sc.y,min:yMin}}}});
 
-  // 2 · MoM bar
-  const momD=d.mom.slice(1), momL=s.months.slice(1);
-  mk('cMom',{type:'bar',data:{labels:momL,datasets:[{label:'MoM Δ',data:momD,
-    backgroundColor:momD.map(v=>v>=0?'rgba(63,185,80,.72)':'rgba(248,81,73,.72)'),
-    borderColor:momD.map(v=>v>=0?'#3fb950':'#f85149'),borderWidth:1,borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.raw>=0?'+':''}${abs$(ctx.raw)}`}}},
-    scales:{x:{grid:{display:false},ticks:tk},y:{grid:g,ticks:{...tk,callback:v=>(v>=0?'+':'')+kFmt(v)}}}}});
+  // 2 · MoM waterfall (floating bars: each bar spans prev NW → curr NW)
+  const momL = s.months.slice(1);
+  const momFloat = d.nw.slice(1).map((v,i) => [Math.min(d.nw[i],v), Math.max(d.nw[i],v)]);
+  const momBg  = d.nw.slice(1).map((v,i) => v>=d.nw[i] ? 'rgba(63,185,80,.75)'  : 'rgba(248,81,73,.75)');
+  const momBdr = d.nw.slice(1).map((v,i) => v>=d.nw[i] ? '#3fb950' : '#f85149');
+  const nwMin = Math.min(...d.nw), nwMax = Math.max(...d.nw);
+  const nwPad = (nwMax-nwMin)*0.18 || 50000;
+  mk('cMom',{type:'bar',data:{labels:momL,datasets:[{label:'MoM Change',data:momFloat,
+    backgroundColor:momBg,borderColor:momBdr,borderWidth:1,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{
+        const [lo,hi]=ctx.raw, delta=hi-lo, up=d.nw[ctx.dataIndex+1]>=d.nw[ctx.dataIndex];
+        return ` ${up?'+':'−'}${abs$(delta)}`;
+      }}}},
+      scales:{x:{grid:{display:false},ticks:tk},
+        y:{grid:g,ticks:{...tk,callback:kFmt},
+          min:Math.floor((nwMin-nwPad)/1e4)*1e4,
+          max:Math.ceil( (nwMax+nwPad)/1e4)*1e4}}}});
 
   // 3 · Investments vs Cash totals
   mk('cAlloc',{type:'line',data:{labels:s.months,datasets:[
